@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0",
+  "taskId": "",
+  "title": "",
+  "baseline": {
+    "branch": "",
+    "commit": "",
+    "workingTreeInitiallyDirty": false
+  },
+  "executionMode": "basic",
+  "scenario": "unclassified",
+  "riskSignals": [],
+  "goal": "",
+  "acceptanceCriteria": [],
+  "outOfScope": [],
+  "inputs": {
+    "available": [],
+    "missing": [],
+    "waived": []
+  },
+  "plan": {
+    "path": "plan.md",
+    "approvalRequired": true,
+    "approved": false,
+    "approvedBy": "",
+    "approvedAt": ""
+  },
+  "tests": {
+    "designPath": "test-design.md",
+    "executions": []
+  },
+  "review": {
+    "independentRequired": false,
+    "independentCompleted": false,
+    "path": "review.md",
+    "humanApproved": false,
+    "approvedBy": "",
+    "approvedAt": ""
+  },
+  "remainingRisks": [],
+  "status": "intake",
+  "nextAction": "完成开工检查",
+  "createdAt": "",
+  "updatedAt": ""
+}
