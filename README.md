@@ -144,4 +144,12 @@ skills/winin-dev-sop/
    └─ winin-sop.mjs
 ```
 
-仓库只发布当前有效版本。历史试点资料不进入公开仓库，避免开发人员误用过期流程。
+## 历史版本与设计资料
+
+`archive/` 保存早期完整规范和 PowerShell 试点版本，用于追溯设计思路、对比演进过程和复用历史测试资料。归档内容已经停止维护，不是安装入口，也不得覆盖当前版本。
+
+- [历史资料总览](archive/README.md)
+- [第一版多场景文档](archive/v1/README.md)
+- [0.3.1 PowerShell 试点版](archive/v0.3.1/README.md)
+
+开发人员安装和执行时始终以根目录 README 与 `skills/winin-dev-sop/` 为准。

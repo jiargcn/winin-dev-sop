@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "1.0",
+  "sopVersion": "0.3.1",
+  "taskId": "",
+  "title": "",
+  "repositoryRoot": "",
+  "baselineCommit": "",
+  "workingTreeInitiallyDirty": false,
+  "scenario": {
+    "code": "UNCLASSIFIED",
+    "confidence": "low",
+    "reason": "",
+    "confirmedByHuman": false
+  },
+  "signals": {
+    "unclear": false,
+    "unfamiliar": false,
+    "databaseChange": false,
+    "contractChange": false,
+    "momCoreChange": false,
+    "security": false,
+    "performanceRisk": false,
+    "intermittent": false,
+    "hotfix": false,
+    "newArchitecture": false
+  },
+  "conditionActions": {
+    "unclear": { "status": "not_applicable", "evidence": [] },
+    "unfamiliar": { "status": "not_applicable", "evidence": [] },
+    "databaseChange": { "status": "not_applicable", "evidence": [] },
+    "contractChange": { "status": "not_applicable", "evidence": [] },
+    "momCoreChange": { "status": "not_applicable", "evidence": [] },
+    "security": { "status": "not_applicable", "evidence": [] },
+    "performanceRisk": { "status": "not_applicable", "evidence": [] },
+    "intermittent": { "status": "not_applicable", "evidence": [] },
+    "hotfix": { "status": "not_applicable", "evidence": [] },
+    "newArchitecture": { "status": "not_applicable", "evidence": [] }
+  },
+  "task": {
+    "source": "",
+    "goal": "",
+    "outOfScope": [],
+    "acceptanceCriteria": []
+  },
+  "inputs": {
+    "available": [],
+    "missing": []
+  },
+  "phase": "intake",
+  "approvals": [],
+  "evidence": {
+    "analysis": [],
+    "tests": [],
+    "reviews": [],
+    "rollback": []
+  },
+  "sidecar": {
+    "mode": "pending",
+    "plan": {
+      "packetPath": "",
+      "reportPath": ""
+    },
+    "final": {
+      "packetPath": "",
+      "reportPath": ""
+    }
+  },
+  "remainingRisks": [],
+  "status": "active",
+  "nextAction": "route_task",
+  "updatedAt": null
+}

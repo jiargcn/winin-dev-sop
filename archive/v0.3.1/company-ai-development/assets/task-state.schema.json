@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ai-sop/task-state.schema.json",
+  "title": "AI SOP Task State",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "sopVersion",
+    "taskId",
+    "title",
+    "repositoryRoot",
+    "baselineCommit",
+    "scenario",
+    "signals",
+    "conditionActions",
+    "task",
+    "inputs",
+    "phase",
+    "approvals",
+    "evidence",
+    "sidecar",
+    "remainingRisks",
+    "status",
+    "nextAction",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "sopVersion": { "type": "string", "minLength": 1 },
+    "taskId": { "type": "string" },
+    "title": { "type": "string" },
+    "repositoryRoot": { "type": "string" },
+    "baselineCommit": { "type": "string" },
+    "workingTreeInitiallyDirty": { "type": "boolean" },
+    "scenario": {
+      "type": "object",
+      "required": ["code", "confidence", "reason", "confirmedByHuman"],
+      "properties": {
+        "code": { "enum": ["UNCLASSIFIED", "A1", "A2", "A3", "B", "C", "D", "E"] },
+        "confidence": { "enum": ["low", "medium", "high"] },
+        "reason": { "type": "string" },
+        "confirmedByHuman": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "signals": {
+      "type": "object",
+      "required": ["unclear", "unfamiliar", "databaseChange", "contractChange", "momCoreChange", "security", "performanceRisk", "intermittent", "hotfix", "newArchitecture"],
+      "additionalProperties": { "type": "boolean" }
+    },
+    "conditionActions": {
+      "type": "object",
+      "required": ["unclear", "unfamiliar", "databaseChange", "contractChange", "momCoreChange", "security", "performanceRisk", "intermittent", "hotfix", "newArchitecture"],
+      "properties": {
+        "unclear": { "$ref": "#/$defs/conditionAction" },
+        "unfamiliar": { "$ref": "#/$defs/conditionAction" },
+        "databaseChange": { "$ref": "#/$defs/conditionAction" },
+        "contractChange": { "$ref": "#/$defs/conditionAction" },
+        "momCoreChange": { "$ref": "#/$defs/conditionAction" },
+        "security": { "$ref": "#/$defs/conditionAction" },
+        "performanceRisk": { "$ref": "#/$defs/conditionAction" },
+        "intermittent": { "$ref": "#/$defs/conditionAction" },
+        "hotfix": { "$ref": "#/$defs/conditionAction" },
+        "newArchitecture": { "$ref": "#/$defs/conditionAction" }
+      },
+      "additionalProperties": false
+    },
+    "task": {
+      "type": "object",
+      "required": ["source", "goal", "outOfScope", "acceptanceCriteria"],
+      "properties": {
+        "source": { "type": "string" },
+        "goal": { "type": "string" },
+        "outOfScope": { "$ref": "#/$defs/stringArray" },
+        "acceptanceCriteria": { "$ref": "#/$defs/stringArray" }
+      },
+      "additionalProperties": false
+    },
+    "inputs": {
+      "type": "object",
+      "required": ["available", "missing"],
+      "properties": {
+        "available": { "$ref": "#/$defs/stringArray" },
+        "missing": { "$ref": "#/$defs/stringArray" }
+      },
+      "additionalProperties": false
+    },
+    "phase": { "enum": ["intake", "routed", "analyzing", "ready_for_implementation", "implementing", "verifying", "ready_for_review", "blocked", "observing", "diagnosed", "cancelled"] },
+    "approvals": { "$ref": "#/$defs/stringArray" },
+    "evidence": {
+      "type": "object",
+      "required": ["analysis", "tests", "reviews", "rollback"],
+      "additionalProperties": { "$ref": "#/$defs/stringArray" }
+    },
+    "sidecar": {
+      "type": "object",
+      "required": ["mode", "plan", "final"],
+      "properties": {
+        "mode": { "enum": ["pending", "subagent", "independent_thread", "manual_fallback", "unavailable"] },
+        "plan": { "$ref": "#/$defs/sidecarEvidence" },
+        "final": { "$ref": "#/$defs/sidecarEvidence" }
+      },
+      "additionalProperties": false
+    },
+    "remainingRisks": { "$ref": "#/$defs/stringArray" },
+    "status": { "enum": ["active", "blocked", "observing", "diagnosed", "ready_for_review", "cancelled"] },
+    "nextAction": { "type": "string" },
+    "updatedAt": { "type": ["string", "null"] }
+  },
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "sidecarEvidence": {
+      "type": "object",
+      "required": ["packetPath", "reportPath"],
+      "properties": {
+        "packetPath": { "type": "string" },
+        "reportPath": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "conditionAction": {
+      "type": "object",
+      "required": ["status", "evidence"],
+      "properties": {
+        "status": { "enum": ["not_applicable", "pending", "complete"] },
+        "evidence": { "$ref": "#/$defs/stringArray" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

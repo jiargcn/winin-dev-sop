@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ai-sop/project-profile.schema.json",
+  "title": "AI SOP Project Profile",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "sopVersion",
+    "projectName",
+    "repository",
+    "commands",
+    "sources",
+    "aiDataPolicy",
+    "owners",
+    "github",
+    "verified",
+    "verifiedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "sopVersion": { "type": "string", "minLength": 1 },
+    "projectName": { "type": "string", "minLength": 1 },
+    "repository": {
+      "type": "object",
+      "required": ["root", "backendPath", "frontendPath", "defaultBranch"],
+      "properties": {
+        "root": { "type": "string", "minLength": 1 },
+        "backendPath": { "type": "string" },
+        "frontendPath": { "type": "string" },
+        "defaultBranch": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "commands": {
+      "type": "object",
+      "required": ["baseline", "backendTest", "backendBuild", "frontendTest", "frontendBuild", "staticCheck"],
+      "additionalProperties": { "$ref": "#/$defs/stringArray" }
+    },
+    "sources": {
+      "type": "object",
+      "required": ["architecture", "businessRules", "ddl", "contracts", "testData"],
+      "additionalProperties": { "$ref": "#/$defs/stringArray" }
+    },
+    "aiDataPolicy": {
+      "type": "object",
+      "required": ["allowed", "forbidden"],
+      "properties": {
+        "allowed": { "$ref": "#/$defs/stringArray" },
+        "forbidden": { "$ref": "#/$defs/nonEmptyStringArray" }
+      },
+      "additionalProperties": false
+    },
+    "owners": {
+      "type": "object",
+      "required": ["project", "business", "database", "integration", "security", "architecture"],
+      "additionalProperties": { "type": "string" }
+    },
+    "github": {
+      "type": "object",
+      "required": ["requiredChecks", "commitTaskState"],
+      "properties": {
+        "requiredChecks": { "$ref": "#/$defs/stringArray" },
+        "commitTaskState": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "verified": { "type": "boolean" },
+    "verifiedAt": { "type": ["string", "null"] }
+  },
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "nonEmptyStringArray": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "additionalProperties": false
+}
