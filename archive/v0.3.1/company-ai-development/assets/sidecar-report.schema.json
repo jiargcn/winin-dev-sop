@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/ai-sop/sidecar-report.schema.json",
+  "title": "AI SOP Sidecar Report",
+  "type": "object",
+  "required": ["packetId", "packetHash", "phase", "decision", "scenario", "newSignals", "issues", "missingEvidence", "nextAction", "reviewedAt"],
+  "properties": {
+    "packetId": { "type": "string", "minLength": 1 },
+    "packetHash": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" },
+    "phase": { "enum": ["plan", "final"] },
+    "decision": { "enum": ["pass", "block", "human_decision"] },
+    "scenario": { "enum": ["A1", "A2", "A3", "B", "C", "D", "E"] },
+    "newSignals": { "$ref": "#/$defs/stringArray" },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["priority", "summary", "evidence", "requiredAction"],
+        "properties": {
+          "priority": { "enum": ["P0", "P1", "P2"] },
+          "summary": { "type": "string" },
+          "evidence": { "type": "string" },
+          "requiredAction": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "missingEvidence": { "$ref": "#/$defs/stringArray" },
+    "nextAction": { "type": "string" },
+    "reviewedAt": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

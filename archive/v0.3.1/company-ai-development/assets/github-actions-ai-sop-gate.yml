@@ -1,0 +1,52 @@
+name: AI SOP Gate
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-ai-sop-evidence:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate AI SOP evidence
+        shell: pwsh
+        run: |
+          $statePath = ".ai-sop/task-state.json"
+          $validatorPath = ".ai-sop/tools/Test-AiSopGate.ps1"
+          $profilePath = ".ai-sop/project-profile.json"
+          $profileValidatorPath = ".ai-sop/tools/Test-AiSopProjectProfile.ps1"
+
+          if (-not (Test-Path -LiteralPath $statePath)) {
+            throw "Missing AI SOP task state: $statePath"
+          }
+          if (-not (Test-Path -LiteralPath $validatorPath)) {
+            throw "Missing AI SOP validator: $validatorPath"
+          }
+          if (-not (Test-Path -LiteralPath $profilePath)) {
+            throw "Missing AI SOP project profile: $profilePath"
+          }
+          if (-not (Test-Path -LiteralPath $profileValidatorPath)) {
+            throw "Missing AI SOP project profile validator: $profileValidatorPath"
+          }
+
+          & $profileValidatorPath -ProfilePath $profilePath
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+          $profile = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
+          if ($state.sopVersion -ne $profile.sopVersion) {
+            throw "AI SOP version mismatch: task=$($state.sopVersion), project=$($profile.sopVersion)"
+          }
+
+          & $validatorPath -StatePath $statePath -Gate review
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }

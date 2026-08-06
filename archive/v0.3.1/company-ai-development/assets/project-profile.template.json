@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "1.0",
+  "sopVersion": "0.3.1",
+  "projectName": "",
+  "repository": {
+    "root": ".",
+    "backendPath": ".",
+    "frontendPath": "",
+    "defaultBranch": "main"
+  },
+  "commands": {
+    "baseline": [],
+    "backendTest": [],
+    "backendBuild": [],
+    "frontendTest": [],
+    "frontendBuild": [],
+    "staticCheck": []
+  },
+  "sources": {
+    "architecture": [],
+    "businessRules": [],
+    "ddl": [],
+    "contracts": [],
+    "testData": []
+  },
+  "aiDataPolicy": {
+    "allowed": [],
+    "forbidden": [
+      "密钥和凭据",
+      "未脱敏生产数据",
+      "客户敏感信息"
+    ]
+  },
+  "owners": {
+    "project": "",
+    "business": "",
+    "database": "",
+    "integration": "",
+    "security": "",
+    "architecture": ""
+  },
+  "github": {
+    "requiredChecks": [],
+    "commitTaskState": true
+  },
+  "verified": false,
+  "verifiedAt": null
+}
