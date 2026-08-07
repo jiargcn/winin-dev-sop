@@ -12,7 +12,8 @@
   "baseline": {
     "branch": "",
     "commit": "",
-    "workingTreeInitiallyDirty": false
+    "workingTreeInitiallyDirty": false,
+    "repos": []
   },
   "createdAt": "",
   "updatedAt": ""

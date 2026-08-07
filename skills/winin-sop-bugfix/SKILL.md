@@ -37,25 +37,25 @@ flowchart TD
 
 ## ② 建任务 + 登记档位 + 加载规范
 
+- 若工作区尚无 `.ai-sop/`（如刚迁移本 skill 包）：先运行 `node ../winin-sop-common/scripts/winin-sop.mjs init-env --repo <工作区根>` 创建环境骨架（spec/tasks/archive + 索引模板），再建任务。
 - L2：`node ../winin-sop-common/scripts/winin-sop.mjs init --repo <root> --task <编号> --title <标题>`
 - 登记档位：编辑 task-state.json 的 complexity 字段（level/reason/confirmedBy/confirmedAt；字段模板见 ../winin-sop-common/workflow.md）
-- 加载规范：调用 `../winin-sop-spec/SKILL.md`（日志/排查、业务领域规范，按索引命中加载）。
+- 加载规范：调用 `../winin-sop-spec/SKILL.md`（项目约定、业务领域规范，按风险点命中加载；日志路径/DB 连接等运行时信息从配置文件读取，不在规范库查找）。
 
 ## ③ 获取日志（必做）
 
 ### 3.1 定位日志路径（按顺序尝试，不假设任何一处必有）
 
-1. spec 加速：读规范库中排查类规范（winin-sop-spec 加载结果），若存在且有日志映射，用之。
-2. 配置推断（MOM 惯例，其他项目按相同思路从配置推断）：
+1. 配置推断（MOM 惯例，其他项目按相同思路从配置推断）：
    - 从异常堆栈顶部包名确定模块：`com.win.module.{name}.xxx` → 模块目录 `win-module-{name}`
    - 读模块 `bootstrap.yaml`：`spring.application.name`（如 `wms-server`）与 `logging.file.name`（通常 `logs/${spring.application.name}.log`）
    - 日志文件 = 模块目录下 `logs/{app-name}.log`
-3. 搜索：
+2. 搜索：
    ```powershell
    Get-ChildItem -Path <模块目录> -Filter "*.log" -Recurse | Where-Object { $_.Length -gt 0 } | Select-Object FullName, Length
    ```
    按修改时间取最新；注意日志按大小/时间滚动（单文件最大 100MB，保留 30 天），旧日志在 `.log.{日期}.gz` 归档中。
-4. 仍找不到：直接问用户日志位置。
+3. 仍找不到：直接问用户日志位置。
 
 每一步先检查"是否存在/有内容"，再决定是否使用；spec 可能不存在或未填写，不能假设其内容。
 
@@ -101,21 +101,20 @@ Select-String -Path logs/{app-name}.log -Pattern "2026-07-24 14:" | Select-Objec
 
 连接信息获取（按顺序尝试，不假设任何一处必有）：
 
-1. spec 加速：规范库排查类规范中的连接说明（若存在）。
-2. 配置提取（MOM 惯例，其他项目按相同思路）：
+1. 配置提取（MOM 惯例，其他项目按相同思路）：
    - 从异常堆栈包名确定模块：`com.win.module.wms.xxx` → `win-module-wms`
    - 读模块 `bootstrap.yaml` 的 `spring.profiles.active` → profile（local/dev/test/prod）
    - 读 `application-{profile}.yaml`，正则提取：
      - `url: jdbc:postgresql://{host}:{port}/{db}`
      - `username:` / `password:`
    - 各模块使用独立数据库（wms/dbc/infra/system），连接信息在各模块配置中独立。
-3. 连接（只读事务）：
+2. 连接（只读事务）：
    ```powershell
    $env:PGPASSWORD = $pw
    psql -h $host -p $port -U $user -d $db -v ON_ERROR_STOP=1 `
      -c "BEGIN READ ONLY;" -c "SELECT ..." -c "COMMIT;"
    ```
-4. 提取不到或数据库不可达 → 跳过数据库排查并记录原因，不阻断代码分析。
+3. 提取不到或数据库不可达 → 跳过数据库排查并记录原因，不阻断代码分析。
 
 常用排查 SQL（只读）：按单号查业务单据状态、查最近 N 条记录、`\d` 表结构、`\dt` 全部表。
 

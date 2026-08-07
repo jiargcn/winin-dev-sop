@@ -15,7 +15,7 @@ skills/
 ├─ winin-sop-bugfix/            # 主入口① 缺陷处理完整流程（调研定档→三要素排查→修复→交付）
 ├─ winin-sop-feature/           # 主入口② 功能开发完整流程（调研定档→需求澄清→方案→实施→交付）
 ├─ winin-sop-explore/           # 只读问答入口：探索代码回答问题（不建任务）
-├─ winin-sop-spec/              # 内部能力：发现并加载开发规范（.ai-sop/spec/ 或 .trellis/spec/）
+├─ winin-sop-spec/              # 内部能力：发现并加载开发规范（优先 .trellis/spec/，无 Trellis 用 .ai-sop/spec/，同构：按域分目录 + index.md）
 ├─ winin-sop-test/              # 内部能力：单元测试环节（业务链单测，真实上下文/不 mock/回滚隔离）
 └─ winin-sop-review/            # 内部能力：交付前审查（prd 比对 + 影响面 + 质量证据 + 合规；独立把关执行者）
 ```
@@ -38,7 +38,7 @@ skills/
 
 | Skill | 职责 | 适用场景 |
 | --- | --- | --- |
-| **winin-sop-spec** | 发现并加载开发规范：依次尝试 `.ai-sop/spec/`、`.trellis/spec/`，读 index.md 索引按风险点语义命中加载；无规范库则跳过不阻断 | 开发前、评审代码、diff 合规检查 |
+| **winin-sop-spec** | 发现并加载开发规范：优先 `.trellis/spec/`（Trellis 范式：按域分目录 + index.md 索引，按风险点命中加载）；无 Trellis 的项目用 `.ai-sop/spec/`（同构格式）。规范 = 项目实际使用的编码约定，**不含运行时配置**（日志路径/DB 连接从配置文件读取）；无规范库则跳过不阻断 | 开发前、评审代码、diff 合规检查 |
 | **winin-sop-test** | 单元测试环节：以业务链为单位编写真实单测并运行（完整上下文/真实数据/不 mock/回滚隔离），产出验收标准验证证据；含环境就绪检查、失败诊断流程 | 实施完成阶段、独立编写单测 |
 | **winin-sop-review** | 交付前审查（唯一交付检查，静态只读）：prd 与实际改动逐条比对、影响面分析、质量与证据检查（需求遗漏/边界异常/代码卫生）、规范合规；独立把关执行者 | 交付前检查、评审他人提交、独立把关 |
 
@@ -48,6 +48,7 @@ skills/
 
 | 命令 | 职责 |
 | --- | --- |
+| `init-env` | 环境初始化：建 `.ai-sop/` 骨架（spec/ + tasks/ + archive/ + 索引模板），幂等不覆盖；迁移 skill 包后首次使用前执行 |
 | `init` | 建任务目录 + task-state.json + 文档模板（防覆盖） |
 | `status` | 状态机更新（in_progress/ready_for_review 自动校验对应门禁；completed 只能由 archive 写入） |
 | `gate` | readiness / completion 门禁（产物+方案确认；验收标准全勾选；验证记录覆盖每条 AC、无 failed、skipped 须注明原因；subtasks 全勾选；不改变状态） |
@@ -71,7 +72,7 @@ AI 先快速调研代码范围，基于证据推荐档位，开发人员一次�
 
 ## 任务产物：prd / design / review（及例外 subtasks）
 
-L2 级别任务在 `.ai-sop/tasks/<编号>/` 下产生文档，职责严格分工：prd.md（业务）、design.md（技术）、review.md（复核与交付确认），大任务另建 subtasks.md（例外）：
+L2 级别任务在**工作区根** `.ai-sop/tasks/<编号>/` 下产生文档（多 git 子仓库项目也统一放根，规范与任务全组共享），职责严格分工：prd.md（业务）、design.md（技术）、review.md（复核与交付确认），大任务另建 subtasks.md（例外）：
 
 | 文档 | 回答的问题 | 核心内容 | 谁读、何时用 |
 | --- | --- | --- | --- |
@@ -112,9 +113,12 @@ L2 级别任务在 `.ai-sop/tasks/<编号>/` 下产生文档，职责严格分�
 
 # 2. 验证脚本可用
 node <skills根>\winin-sop-common\scripts\winin-sop.mjs self-test
+
+# 3. 初始化环境骨架（迁移后首次使用前；创建 .ai-sop/ 的 spec/tasks/archive 与索引模板）
+node <skills根>\winin-sop-common\scripts\winin-sop.mjs init-env --repo <项目根>
 ```
 
-规范库：无需初始化。项目已有规范（`.ai-sop/spec/` 或 `.trellis/spec/`，含 index.md 索引表）会被 `winin-sop-spec` 自动发现并按风险点加载；没有规范库则跳过，不阻断任务。
+规范库：无需初始化。项目已有规范（优先 `.trellis/spec/`，无 Trellis 的项目用 `.ai-sop/spec/`，两者同构：按域分目录 + index.md 索引表）会被 winin-sop-spec 自动发现并按风险点加载；规范 = 项目实际使用的编码约定（结构/命名/数据库/接口/安全/质量），**日志路径、DB 连接等运行时配置从配置文件读取，不属于规范**；没有规范库则跳过，不阻断任务。
 
 ## 使用示例：两个全流程
 

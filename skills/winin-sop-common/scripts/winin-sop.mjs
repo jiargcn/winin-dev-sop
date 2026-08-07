@@ -35,6 +35,42 @@ function runGit(repo, args) {
   return result.status === 0 ? result.stdout.trim() : "";
 }
 
+function gitBaselineOf(dir) {
+  // 只认自身就是仓库根（含 .git）的目录；避免 git -C 向上查找父仓库造成误判
+  if (!fs.existsSync(path.join(dir, ".git"))) return { branch: "", commit: "", dirty: false };
+  const branch = runGit(dir, ["branch", "--show-current"]);
+  const commit = runGit(dir, ["rev-parse", "HEAD"]);
+  const dirty = Boolean(runGit(dir, ["status", "--porcelain"]));
+  return { branch: branch || "NO_GIT_BRANCH", commit: commit || "", dirty };
+}
+
+// 基线探测：工作区根是 git → 单仓库基线；根非 git → 扫描一、二级子目录中的 git 仓库记入 repos
+// （支持 monorepo 形态：工作区根/领域目录/模块仓库，如 yx-mom 的 根/mom/win-module-wms）
+function detectBaseline(repo) {
+  const root = gitBaselineOf(repo);
+  if (root.commit) {
+    return { branch: root.branch, commit: root.commit, workingTreeInitiallyDirty: root.dirty, repos: [] };
+  }
+  const candidates = new Set();
+  for (const name of fs.readdirSync(repo)) {
+    const dir = path.join(repo, name);
+    if (!fs.statSync(dir).isDirectory()) continue;
+    candidates.add(dir);
+    for (const sub of fs.readdirSync(dir)) {
+      const subDir = path.join(dir, sub);
+      if (fs.statSync(subDir).isDirectory()) candidates.add(subDir);
+    }
+  }
+  const repos = [];
+  for (const dir of candidates) {
+    const b = gitBaselineOf(dir);
+    if (b.commit) {
+      repos.push({ repo: path.relative(repo, dir).replace(/\\/g, "/"), branch: b.branch, commit: b.commit, workingTreeInitiallyDirty: b.dirty });
+    }
+  }
+  return { branch: "NO_GIT_BRANCH", commit: "", workingTreeInitiallyDirty: false, repos };
+}
+
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/, ""));
 }
@@ -146,7 +182,17 @@ function gate(taskDir, name, expectedStatus) {
   if (errors.length) return errors;
 
   if (!state.title.trim()) errors.push("任务标题未填写");
-  if (!state.baseline.commit) errors.push("基线提交未记录；非 Git 项目请写 NO_GIT_BASELINE");
+  if (!state.baseline || typeof state.baseline !== "object") errors.push("基线未记录");
+  else {
+    const repos = state.baseline.repos || [];
+    const hasSingle = Boolean(state.baseline.commit);
+    if (!hasSingle && repos.length === 0) {
+      errors.push("基线未记录：单仓库模式缺 commit，且 repos 为空（工作区需是 git 仓库或含 git 子仓库）");
+    }
+    if (repos.length > 0 && repos.some((r) => !r || !r.repo || !r.commit)) {
+      errors.push("baseline.repos 存在缺 repo 或 commit 的项");
+    }
+  }
   if (!VALID_STATUS.includes(state.status)) {
     errors.push(`未知状态：${state.status}`);
   }
@@ -214,6 +260,45 @@ function gate(taskDir, name, expectedStatus) {
   return errors;
 }
 
+// 环境初始化：显式创建 .ai-sop 骨架（spec/ tasks/ archive/ + 域级规范索引模板 + README），幂等不覆盖
+function initEnv(args) {
+  const repo = path.resolve(String(args.repo || "."));
+  if (!fs.existsSync(repo) || !fs.statSync(repo).isDirectory()) throw new Error(`源码目录不存在：${repo}`);
+  const aiSopDir = path.join(repo, ".ai-sop");
+  const created = [];
+  for (const sub of ["spec", "tasks", "archive"]) {
+    const dir = path.join(aiSopDir, sub);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      created.push(path.join(".ai-sop", sub));
+    }
+  }
+  const templateDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "assets", "templates");
+  // 规范骨架对齐 Trellis 范式：按域分目录，每域一个 index.md；根级 index.md 不是必须。
+  // 已有规范（迁移/手写）时不创建任何模板。
+  const specDir = path.join(aiSopDir, "spec");
+  const hasExistingSpec = fs.readdirSync(specDir).some((name) => {
+    const p = path.join(specDir, name);
+    return (fs.statSync(p).isDirectory() && fs.readdirSync(p).some((f) => f.endsWith(".md"))) || name.endsWith(".md");
+  });
+  if (!hasExistingSpec) {
+    for (const domain of ["backend", "frontend"]) {
+      const idx = path.join(specDir, domain, "index.md");
+      if (!fs.existsSync(idx)) {
+        fs.mkdirSync(path.dirname(idx), { recursive: true });
+        fs.copyFileSync(path.join(templateDir, "spec-domain-index.md"), idx);
+        created.push(path.join(".ai-sop/spec", domain, "index.md"));
+      }
+    }
+  }
+  const readme = path.join(aiSopDir, "README.md");
+  if (!fs.existsSync(readme)) {
+    fs.copyFileSync(path.join(templateDir, "ai-sop-readme.md"), readme);
+    created.push(".ai-sop/README.md");
+  }
+  process.stdout.write(`${JSON.stringify({ aiSopDir, created, note: "已存在的文件跳过，不覆盖" }, null, 2)}\n`);
+}
+
 function init(args) {
   const repo = path.resolve(String(args.repo || "."));
   const taskId = String(args.task || "");
@@ -226,16 +311,16 @@ function init(args) {
   if (fs.existsSync(taskDir)) throw new Error(`任务目录已存在，不会覆盖：${taskDir}`);
   fs.mkdirSync(taskDir, { recursive: true });
 
-  const branch = runGit(repo, ["branch", "--show-current"]) || "NO_GIT_BRANCH";
-  const commit = runGit(repo, ["rev-parse", "HEAD"]) || "NO_GIT_BASELINE";
-  const dirty = Boolean(runGit(repo, ["status", "--porcelain"]));
   const now = new Date().toISOString();
 
   const templateDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "assets", "templates");
   const state = readJson(path.join(templateDir, "task.json"));
   state.taskId = taskId;
   state.title = title;
-  state.baseline = { branch, commit, workingTreeInitiallyDirty: dirty };
+  state.baseline = detectBaseline(repo);
+  if (!state.baseline.commit && state.baseline.repos.length === 0) {
+    throw new Error(`工作区既不是 git 仓库，直接子目录中也没有 git 仓库；请确认 --repo 指向源码工作区根`);
+  }
   state.createdAt = now;
   writeJson(path.join(taskDir, "task-state.json"), state);
 
@@ -335,6 +420,8 @@ function setStatus(args) {
 function selfTest() {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), "winin-dev-sop-"));
   try {
+    runGit(repo, ["init", "-q"]);
+    runGit(repo, ["commit", "-q", "--allow-empty", "-m", "init"]);
     const original = process.stdout.write;
     process.stdout.write = () => true;
     init({ repo, task: "TEST-1", title: "自检任务" });
@@ -478,6 +565,90 @@ function selfTest() {
   }
 }
 
+// 环境初始化自检：空目录建域级骨架、幂等不覆盖、已有规范时不再创建模板
+function selfTestInitEnv() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "winin-sop-env-"));
+  try {
+    const original = process.stdout.write;
+    process.stdout.write = () => true;
+    initEnv({ repo: root });
+    process.stdout.write = original;
+    const expect = [".ai-sop/spec/backend/index.md", ".ai-sop/spec/frontend/index.md", ".ai-sop/README.md", ".ai-sop/tasks", ".ai-sop/archive"];
+    for (const f of expect) {
+      if (!fs.existsSync(path.join(root, f))) throw new Error(`init-env 未创建 ${f}`);
+    }
+    if (fs.existsSync(path.join(root, ".ai-sop/spec/index.md"))) throw new Error("根级 spec/index.md 不应被创建（Trellis 范式为域级）");
+    const before = fs.readFileSync(path.join(root, ".ai-sop/spec/backend/index.md"), "utf8");
+    process.stdout.write = () => true;
+    initEnv({ repo: root });
+    process.stdout.write = original;
+    const after = fs.readFileSync(path.join(root, ".ai-sop/spec/backend/index.md"), "utf8");
+    if (before !== after) throw new Error("init-env 二次执行覆盖了已有文件（应幂等）");
+
+    // 已有规范（如整体迁移 Trellis spec）→ 不创建任何模板
+    const migrated = fs.mkdtempSync(path.join(os.tmpdir(), "winin-sop-mig-"));
+    fs.mkdirSync(path.join(migrated, ".ai-sop", "spec", "backend"), { recursive: true });
+    fs.writeFileSync(path.join(migrated, ".ai-sop", "spec", "backend", "index.md"), "# 迁移的规范");
+    process.stdout.write = () => true;
+    initEnv({ repo: migrated });
+    process.stdout.write = original;
+    if (fs.existsSync(path.join(migrated, ".ai-sop", "spec", "frontend", "index.md"))) {
+      throw new Error("已有规范时不应创建新域模板（保留原状）");
+    }
+    const migratedSpec = fs.readFileSync(path.join(migrated, ".ai-sop", "spec", "backend", "index.md"), "utf8");
+    if (migratedSpec !== "# 迁移的规范") throw new Error("迁移的规范文件被覆盖");
+    fs.rmSync(migrated, { recursive: true, force: true });
+
+    process.stdout.write("winin-dev-sop init-env self-test passed\n");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+// 多仓库工作区：根非 git，直接子目录含 git 仓库 → repos 基线
+function selfTestMultiRepo() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "winin-sop-multi-"));
+  try {
+    const original = process.stdout.write;
+    process.stdout.write = () => true;
+    for (const sub of ["mom/win-module-wms", "mom/win-module-mes"]) {
+      const dir = path.join(root, sub);
+      fs.mkdirSync(dir, { recursive: true });
+      runGit(dir, ["init", "-q"]);
+      fs.writeFileSync(path.join(dir, "x.txt"), sub);
+      runGit(dir, ["add", "-A"]);
+      runGit(dir, ["commit", "-q", "-m", "init"]);
+    }
+    init({ repo: root, task: "MES-T1", title: "多仓库基线" });
+    process.stdout.write = original;
+
+    const state = readState(taskDirOf(root, "MES-T1"));
+    if (state.baseline.commit) throw new Error("多仓库工作区不应产生单仓库基线");
+    if (state.baseline.repos.length !== 2) throw new Error(`应探测到 2 个子仓库，实际 ${state.baseline.repos.length}`);
+    for (const r of state.baseline.repos) {
+      if (!r.commit) throw new Error(`子仓库 ${r.repo} 缺少 commit`);
+    }
+
+    // 无 git 工作区 → init 应拒绝
+    const plain = fs.mkdtempSync(path.join(os.tmpdir(), "winin-sop-plain-"));
+    let rejected = false;
+    try {
+      process.stdout.write = () => true;
+      init({ repo: plain, task: "MES-T2", title: "无 git" });
+    } catch {
+      rejected = true;
+    } finally {
+      process.stdout.write = original;
+      fs.rmSync(plain, { recursive: true, force: true });
+    }
+    if (!rejected) throw new Error("无 git 工作区未被 init 拒绝");
+
+    process.stdout.write("winin-dev-sop multi-repo self-test passed\n");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
 const args = parseArgs(process.argv.slice(2));
 const command = args._[0];
 try {
@@ -490,8 +661,13 @@ try {
   else if (command === "archive") archive(args);
   else if (command === "list") list(args);
   else if (command === "status") setStatus(args);
-  else if (command === "self-test") selfTest();
-  else fail("用法：winin-sop.mjs <init|status|gate|archive|list|self-test> [参数]");
+  else if (command === "self-test") {
+    selfTest();
+    selfTestMultiRepo();
+    selfTestInitEnv();
+  }
+  else if (command === "init-env") initEnv(args);
+  else fail("用法：winin-sop.mjs <init-env|init|status|gate|archive|list|self-test> [参数]");
 } catch (error) {
   fail(error instanceof Error ? error.message : String(error));
 }

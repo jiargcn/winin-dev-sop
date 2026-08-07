@@ -40,10 +40,16 @@
 
 ### 目录结构
 
+`.ai-sop/` 位于**工作区根**（无论根是否 git 仓库；多 git 子仓库项目如 yx-mom 也统一放根，规范与任务全组共享）。**迁移 skill 包后、首次使用前，显式执行 `init-env` 创建环境骨架**（含 spec/ 目录与索引模板，让规范有地方放）：
+
+```text
+node <skills根>/winin-sop-common/scripts/winin-sop.mjs init-env --repo <工作区根>
+```
+
 ```
 .ai-sop/
-├─ spec/                    # 团队规范（可选；稳定知识，AI 只读，由 winin-sop-spec 发现加载）
-│  └─ index.md              # 规范索引（也可位于 .trellis/spec/，见 winin-sop-spec）
+├─ spec/                    # 团队规范（可选；仅无 Trellis 的项目使用，结构对齐 .trellis/spec：按域分目录，每域 index.md，根级非必须）
+│  └─ backend/index.md      # 域规范索引（frontend/ guides/ 同构）
 ├─ tasks/<任务编号>/        # 活跃区：未归档任务（默认检索范围）
 │  ├─ task-state.json       # 定位层：状态 + 基线 + 档位（唯一 JSON；其余一律在 md）
 │  ├─ prd.md                # 业务层：目标 + 验收标准 + 范围外 + 待确认项 + 关键事实
@@ -63,10 +69,19 @@
   "status": "planning",
   "complexity": { "level": "L2", "reason": "调研摘要", "confirmedBy": "", "confirmedAt": "" },
   "independentReview": false,
-  "baseline": { "branch": "", "commit": "", "workingTreeInitiallyDirty": false },
+  "baseline": {
+    "branch": "", "commit": "", "workingTreeInitiallyDirty": false,
+    "repos": []
+  },
   "createdAt": "", "updatedAt": ""
 }
 ```
+
+**基线两种形态（init 自动探测，AI 不改）**：
+
+- 工作区根是 git 仓库 → 单仓库基线（branch/commit/workingTreeInitiallyDirty）。
+- 工作区根不是 git（如 yx-mom：mom/win-module-* 各自独立仓库）→ 扫描根下直接子目录中的 git 仓库，全部记入 `baseline.repos`（`{ repo, branch, commit, workingTreeInitiallyDirty }`）。
+- diff 审查与断点恢复按**任务涉及仓库**逐个 `git diff <commit>`；涉及仓库从 design.md 文件清单判断。
 
 验收标准、复核证据分别记录在 prd.md / review.md，不重复写入 JSON；档位确认后直接编辑 complexity 字段，命中硬性信号/难复现时置 `independentReview: true`（AI 维护，无单独命令）。
 
@@ -76,7 +91,7 @@
 ### 任务编号
 
 - 用户有任务单编号就用它（如 MES-1234）；多数情况下用户只给任务描述，AI 自动生成 `LOCAL-日期时间`；目录名 = 编号，编号即唯一标识。
-- 新会话恢复：用户给编号 → 读 `tasks/<编号>/task-state.json` → 读 prd/design → git status 对照基线 → 按状态推断断点。
+- 新会话恢复：用户给编号 → 读 `tasks/<编号>/task-state.json` → 读 prd/design → git status 对照基线（按任务涉及仓库逐个对照） → 按状态推断断点。
 
 ### 大任务拆解（subtasks.md，例外）
 
@@ -96,6 +111,7 @@
 脚本位于共享目录 `winin-sop-common/scripts/winin-sop.mjs`（从入口 skill 看相对路径为 `../winin-sop-common/scripts/winin-sop.mjs`；以下用 `<skills根>/winin-sop-common/` 表示其所在位置）：
 
 ```text
+node <skills根>/winin-sop-common/scripts/winin-sop.mjs init-env --repo <root>   # 环境初始化（首次使用前）
 node <skills根>/winin-sop-common/scripts/winin-sop.mjs init --repo <root> --task <id> --title <title>
 node <skills根>/winin-sop-common/scripts/winin-sop.mjs status --repo <root> --task <id> --state <状态>
 node <skills根>/winin-sop-common/scripts/winin-sop.mjs gate --task-dir <dir> --name readiness|completion
@@ -103,8 +119,11 @@ node <skills根>/winin-sop-common/scripts/winin-sop.mjs archive --repo <root> --
 node <skills根>/winin-sop-common/scripts/winin-sop.mjs list --repo <root>
 ```
 
+- `init-env`：显式初始化环境骨架（`.ai-sop/spec/` + `tasks/` + `archive/` + 说明文档），幂等不覆盖；迁移 skill 包后、首次使用前执行。tasks/archive 仍由任务 init/archive 自动创建。
+
 - 状态机自动绑定门禁：`status --state in_progress` 自动校验 readiness 门；`status --state ready_for_review` 自动校验 completion 门，不过拒绝切换并列出缺失项；blocked / observing 为等待态，切换不校验；completed 只能由 archive 写入。
 - readiness 门：产物存在（prd.md + design.md）+ design.md「方案确认」标记勾选（L1 不建任务，无门禁）。
+- 基线门（init/gate 机械校验）：单仓库模式 `baseline.commit` 非空；多仓库模式 `baseline.repos` 非空且每项 `commit` 非空。工作区根与子目录均无 git 仓库时 init 报错，提示先确认工作区结构。
 - completion 门：状态 ready_for_review + prd.md 验收标准全部勾选（勾选依据 = review 静态核对）+ review.md「验证记录」覆盖每条已勾选验收标准（格式 `- [x] ACn | 验证方式: ... | 结果: passed | 证据: ...`；结果取值 passed/failed/skipped；无 failed；skipped 必须注明原因）+ review.md「交付确认」标记勾选；存在 subtasks.md 时所有子任务必须勾选完成；`independentReview` 任务额外要求 review.md「独立复核」标记勾选。
 - 门禁只机械校验文件与标记，证据真实性由 AI 按纪律判断；Node.js 不可用时按相同规则人工检查，不阻断任务。
 
@@ -112,13 +131,13 @@ node <skills根>/winin-sop-common/scripts/winin-sop.mjs list --repo <root>
 
 | 能力 | 职责 | 被谁调用 |
 | --- | --- | --- |
-| winin-sop-spec | 发现并加载开发规范（依次尝试 `.ai-sop/spec/`、`.trellis/spec/`，读 index.md 索引按风险点命中；无规范库则跳过不阻断） | 两入口的建任务阶段；review 合规检查 |
+| winin-sop-spec | 发现并加载开发规范（优先 `.trellis/spec/`，无 Trellis 项目用 `.ai-sop/spec/`，两者同构：按域分目录 + index.md 索引，按风险点命中加载；规范 = 项目实际使用的编码约定，**不含运行时配置**；无规范库则跳过不阻断） | 两入口的建任务阶段；review 合规检查 |
 | winin-sop-test | 单元测试环节：以业务链为单位编写真实单测并运行（完整上下文/真实数据/不 mock/回滚隔离），产出验收标准验证证据 | 两入口的实施完成阶段 |
 | winin-sop-review | 交付前审查：prd 与实际改动逐条比对 + 影响面分析 + 质量与证据检查 + 规范合规（唯一交付检查）；独立把关执行者 | 两入口的交付阶段 |
 
 ## 检索纪律（防历史任务干扰）
 
-1. 默认上下文只碰：`spec/`（按命中）+ `tasks/` 活跃区（按编号）。
+1. 默认上下文只碰：规范库（`.trellis/spec/` 或 `.ai-sop/spec/`，按命中）+ `tasks/` 活跃区（按编号）。
 2. `archive/` 默认不检索；仅明确历史查询时，先查 `archive/index.md` 摘要，命中才读全文。
 3. 归档即隔离：任务归档后立即移出活跃区（归档由用户主动触发）。
 

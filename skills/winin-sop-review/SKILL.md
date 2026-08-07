@@ -20,9 +20,11 @@ description: 交付前审查（唯一交付检查，静态只读）。获取最�
 ```bash
 git status --porcelain          # 变更文件清单
 git diff --stat                 # 变更规模
-git diff <baseline>             # 完整差异（基线来自 task-state.json）
+git diff <baseline>             # 完整差异（单仓库基线：task-state.json baseline.commit）
 git diff --name-only <baseline> # 文件清单
 ```
+
+多仓库工作区（`baseline.repos` 非空）：按任务涉及仓库逐个执行 `git diff <commit>`（涉及仓库从 design.md 文件清单判断；任务不涉及的仓库跳过，不扫描）。
 
 先核对变更文件是否超出批准范围：混入其他任务、无关重构、未确认的公共对象修改 → 立即标出。
 

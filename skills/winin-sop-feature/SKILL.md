@@ -74,10 +74,11 @@ flowchart LR
 
 - 方案提案（中等以上复杂度）：给出 2-3 个实现方案，各带权衡（改动面/风险/兼容），标出推荐项并说明理由；用户选定（或“按你推荐的来”）。简单任务（1-2 个文件）跳过提案。
 - 大任务拆解：任务跨多个服务、同时涉及前后端与数据库、包含多个可独立验收结果时，建 `subtasks.md` 拆 2~5 个同级子任务（目标/涉及文件/依赖/对应 AC/验证方式），清单与执行顺序随方案一并确认（见 ../winin-sop-common/workflow.md「大任务拆解」）。
+- 若工作区尚无 `.ai-sop/`（如刚迁移本 skill 包）：先运行 `node ../winin-sop-common/scripts/winin-sop.mjs init-env --repo <工作区根>` 创建环境骨架（spec/tasks/archive + 索引模板），再建任务。
 - 建任务并登记档位：`node ../winin-sop-common/scripts/winin-sop.mjs init --repo <root> --task <编号> --title <标题>` → 编辑 task-state.json 的 complexity 字段（level/reason/confirmedBy/confirmedAt；字段模板见 ../winin-sop-common/workflow.md）
 - 写 prd.md（目标/验收标准/范围外/待确认项/关键事实）+ design.md（现状证据复用调研/方案/实施步骤与验证/回退/规范依据）。
 - 验收标准从已确认的业务规则自动生成（不是用户提供），覆盖矩阵五格；每条可观察、可验证。验收标准编号 AC1..ACn 是测试与验证记录的引用键（见 ⑥）。
-- 加载规范：调用 `../winin-sop-spec/SKILL.md`（项目约定必加载，其余按索引命中）。
+- 加载规范：调用 `../winin-sop-spec/SKILL.md`（项目约定必加载，其余按风险点命中；运行时配置从配置文件读取，不在规范库查找）。
 
 ## ④ 方案确认
 
