@@ -1,155 +1,209 @@
 # winin-dev-sop：闻荫开发标准流程
 
-`winin-dev-sop` 是面向软件需求开发和缺陷修复的 AI 协作 Skill。开发人员不需要记忆复杂流程，只需在 Codex、Cursor 或 Claude Code 中打开源码工作区，指定本 Skill 和任务，AI 就会主动完成开工检查、场景判断、方案与测试设计、编码、验证、复核和交付总结。
+`winin-dev-sop` 是面向软件需求开发和缺陷修复的 AI 协作 Skill 包。开发人员不需要记忆复杂流程，只需打开源码工作区，指定入口 Skill 和任务，AI 就会主动完成代码调研、档位推荐、任务建立、规范加载、方案设计、编码、静态检查（影响面分析）和交付总结。
 
-项目的核心目标很简单：让 AI 使用水平不同的开发人员，使用后都能比原来更快、更稳地把任务推进到可提交测试或代码评审的状态。
+两个主入口：`winin-sop-bugfix`（缺陷修复）、`winin-sop-feature`（功能开发）；另有只读问答入口 `winin-sop-explore` 与三个内部能力 `winin-sop-spec` / `winin-sop-test` / `winin-sop-review`，均可独立触发。
 
-## 适用环境
+## 架构
 
-| Agent 工具 | Windows | macOS | 调用方式 |
-| --- | --- | --- | --- |
-| Codex | 支持 | 支持 | `$winin-dev-sop` |
-| Cursor | 支持 | 支持 | `/winin-dev-sop` 或直接点名 |
-| Claude Code | 支持 | 支持 | `/winin-dev-sop` 或直接点名 |
-
-Skill 主流程使用通用 Markdown，不依赖特定 Agent 工具、操作系统或大模型。可选的确定性辅助工具采用 Node.js 标准库实现；没有 Node.js 时，AI 会按相同流程降级执行。
-
-## 最快开始方式：让 AI 自动安装
-
-把本仓库地址和下面的提示词一起发给开发人员。开发人员在 Codex、Cursor 或 Claude Code 中粘贴后，AI 会识别当前工具和操作系统，复制 Skill、验证安装并告诉使用者如何开始。
-
-```text
-请帮我安装并学习闻荫开发标准流程 Skill。
-
-Skill 仓库地址：https://github.com/jiargcn/winin-dev-sop
-Skill 名称：winin-dev-sop
-
-请完成以下工作：
-1. 检测当前运行环境是 Codex、Cursor 还是 Claude Code，并识别 Windows 或 macOS。
-2. 获取上述仓库，只使用仓库中的 skills/winin-dev-sop 目录作为待安装 Skill。
-3. 默认安装到当前用户的全局 Skill 目录：
-   - Codex：~/.agents/skills/winin-dev-sop
-   - Cursor：~/.cursor/skills/winin-dev-sop
-   - Claude Code：~/.claude/skills/winin-dev-sop
-   Windows 中将 ~ 解析为当前用户目录，macOS 中使用用户主目录。
-4. 如果目标目录已经存在，不要直接覆盖。先比较内容；需要升级时创建同级备份，再复制新版本。
-5. 安装后确认目标目录中直接存在 SKILL.md、references、scripts 和 assets，不能多嵌套一层仓库目录。
-6. 如果 Node.js 18 或更高版本可用，运行：
-   node <安装目录>/scripts/winin-sop.mjs self-test
-   如果 Node.js 不可用，说明 Skill 仍可使用，只是确定性辅助检查会由 AI 按文档执行。
-7. 验证当前 Agent 能发现 winin-dev-sop；必要时告诉我重新启动客户端或新建会话。
-8. 阅读安装目录中的 SKILL.md 和本仓库的“开发人员一页操作卡.md”，用不超过五分钟的内容教会我：如何开始任务、什么时候需要我确认、怎样判断任务真正完成。
-9. 最后给出一条适合当前 Agent 的首次使用提示词。
-
-安装过程中不要修改我的业务源码，不要安装无关依赖，不要删除已有 Skill，也不要把密钥、凭据或未脱敏数据发送到外部。
+```
+skills/
+├─ winin-sop-common/            # 共享资源（无 SKILL.md → 不被发现为 skill，不可触发）
+│  ├─ workflow.md               # 共享契约：档位定义、任务协议、状态机、门禁、检索纪律、纪律
+│  ├─ scripts/winin-sop.mjs     # 6 个机械命令：init / status / gate / archive / list / self-test
+│  └─ assets/templates/         # 任务模板：task.json / prd.md / design.md / review.md / subtasks.md
+├─ winin-sop-bugfix/            # 主入口① 缺陷处理完整流程（调研定档→三要素排查→修复→交付）
+├─ winin-sop-feature/           # 主入口② 功能开发完整流程（调研定档→需求澄清→方案→实施→交付）
+├─ winin-sop-explore/           # 只读问答入口：探索代码回答问题（不建任务）
+├─ winin-sop-spec/              # 内部能力：发现并加载开发规范（.ai-sop/spec/ 或 .trellis/spec/）
+├─ winin-sop-test/              # 内部能力：单元测试环节（业务链单测，真实上下文/不 mock/回滚隔离）
+└─ winin-sop-review/            # 内部能力：交付前审查（prd 比对 + 影响面 + 质量证据 + 合规；独立把关执行者）
 ```
 
-也可以直接复制 [AI 安装与自学提示词](AI安装与自学提示词.md)。
+入口即工作流：用户通过两个主入口 skill（bugfix / feature）进入，触发即自动获得完整流程；`winin-sop-common/workflow.md` 是被入口引用的共享契约（任务协议/状态机/门禁/纪律），各 skill 间通过统一相对引用（`../winin-sop-common/...`、`../winin-sop-spec/SKILL.md`）协作，无需额外注册或 hook 注入。
 
-## 手工复制安装
+安装即复制：源码布局 = 安装目标布局（所有 skill 平铺一层，均含 SKILL.md），把 `skills/` 下全部子目录复制到平台 skill 目录即可被任何客户端发现。
 
-不需要运行安装脚本。将本仓库的 `skills/winin-dev-sop` 整个文件夹复制到对应目录：
+## Skill 简介
 
-| 工具 | 项目级目录 | 用户级目录 |
+### 入口层（用户直接触发）
+
+| Skill | 职责 | 触发方式 |
 | --- | --- | --- |
-| Codex | `<项目>/.agents/skills/winin-dev-sop/` | `~/.agents/skills/winin-dev-sop/` |
-| Cursor | `<项目>/.cursor/skills/winin-dev-sop/` | `~/.cursor/skills/winin-dev-sop/` |
-| Claude Code | `<项目>/.claude/skills/winin-dev-sop/` | `~/.claude/skills/winin-dev-sop/` |
+| **winin-sop-bugfix**（主入口①） | 缺陷处理完整流程：调研定档 → 加载规范 → 三要素排查（日志→代码→只读DB）→ 方案确认 → 修复 → 静态检查交付 → 收尾 | 用户说"修 bug/排查报错/为什么失败" |
+| **winin-sop-feature**（主入口②） | 功能开发完整流程：调研定档 → 需求澄清（有预算、禁假设）→ 方案提案 → 方案确认 → 实施 → 静态检查交付 → 收尾 | 用户说"实现功能/增加筛选/修改页面逻辑" |
+| **winin-sop-explore** | 只读问答：定位入口、追溯调用链和数据流，输出带代码位置证据的回答 | 用户直接提问，不建任务 |
 
-复制完成后，[Skill 主文件](skills/winin-dev-sop/SKILL.md)必须直接位于目标目录下。
+### 内部能力层（被主入口路由调用，也可单独触发）
 
-更完整的平台说明和推广前验证矩阵见[安装与试点指南](部署与试点指南.md)。
+| Skill | 职责 | 适用场景 |
+| --- | --- | --- |
+| **winin-sop-spec** | 发现并加载开发规范：依次尝试 `.ai-sop/spec/`、`.trellis/spec/`，读 index.md 索引按风险点语义命中加载；无规范库则跳过不阻断 | 开发前、评审代码、diff 合规检查 |
+| **winin-sop-test** | 单元测试环节：以业务链为单位编写真实单测并运行（完整上下文/真实数据/不 mock/回滚隔离），产出验收标准验证证据；含环境就绪检查、失败诊断流程 | 实施完成阶段、独立编写单测 |
+| **winin-sop-review** | 交付前审查（唯一交付检查，静态只读）：prd 与实际改动逐条比对、影响面分析、质量与证据检查（需求遗漏/边界异常/代码卫生）、规范合规；独立把关执行者 | 交付前检查、评审他人提交、独立把关 |
 
-## 第一次使用
+### 脚本命令
 
-打开需要修改的源码工作区，向 Agent 输入：
+脚本位于共享目录 `winin-sop-common/scripts/winin-sop.mjs`；Node.js 不可用时按相同规则人工检查，不阻断任务。
 
-```text
-使用 winin-dev-sop 完成任务 MES-1234。
-任务内容：工单列表增加产线和计划日期组合筛选，原有筛选保持不变。
-相关资料：任务单、原型或日志位于……
-```
+| 命令 | 职责 |
+| --- | --- |
+| `init` | 建任务目录 + task-state.json + 文档模板（防覆盖） |
+| `status` | 状态机更新（in_progress/ready_for_review 自动校验对应门禁；completed 只能由 archive 写入） |
+| `gate` | readiness / completion 门禁（产物+方案确认；验收标准全勾选；验证记录覆盖每条 AC、无 failed、skipped 须注明原因；subtasks 全勾选；不改变状态） |
+| `archive` | 归档：移动任务 + 写入摘要索引 + 状态 completed |
+| `list` | 列出活跃任务 |
+| `self-test` | 全命令自检 |
 
-Codex 可把第一句写成：
-
-```text
-使用 $winin-dev-sop 完成任务 MES-1234。
-```
-
-AI 会自动完成以下过程：
+## 四步主流程
 
 ```mermaid
 flowchart LR
-    A["检查工作区和必要资料"] --> B["选择工作场景"]
-    B --> C["分析代码并设计方案与测试"]
-    C --> D["必要时请求确认"]
-    D --> E["小步编码和逐轮验证"]
-    E --> F["检查差异并按风险复核"]
-    F --> G["人工确认最终结果"]
-    G --> H["输出总结和下一步"]
+    A["① 调研并推荐档位"] --> B["人工确认"] --> C["建任务 + 方案<br/>L2: prd+design<br/>硬性信号: +独立把关"] --> D["② 加载开发规范"] --> E["③ 开始修改"] --> F["④ diff 分析影响面"] --> G["收尾：archive 仅用户主动"]
 ```
 
-## 开发人员需要做什么
+| 档位 | 判断标准 | 任务产物 | 人工确认 |
+| --- | --- | --- | --- |
+| L1 轻量 | 只改文案/样式/展示顺序 | 无（git diff 即记录） | 交付前确认 |
+| L2 常规 | 功能新增/修改、稳定缺陷 | prd.md + design.md | 编码前方案 + 交付前 |
 
-开发人员主要负责两次确认：
+AI 先快速调研代码范围，基于证据推荐档位，开发人员一次确认（可一句话调整）。
 
-1. 编码前确认：新增功能、现有功能修改和复杂缺陷需要确认方案、范围和测试设计。简单展示修改通常不需要。
-2. 完成前确认：所有任务都需要确认实际业务结果、最终差异、测试结果和剩余风险。
+## 任务产物：prd / design / review（及例外 subtasks）
 
-如果开发过程中出现公共对象、公共接口、数据库变化、MOM 核心状态变化或明显扩大范围，AI 会暂停并增加一次范围确认。
+L2 级别任务在 `.ai-sop/tasks/<编号>/` 下产生文档，职责严格分工：prd.md（业务）、design.md（技术）、review.md（复核与交付确认），大任务另建 subtasks.md（例外）：
 
-日常使用只需阅读[开发人员一页操作卡](开发人员一页操作卡.md)，不需要通读整个 Skill。
+| 文档 | 回答的问题 | 核心内容 | 谁读、何时用 |
+| --- | --- | --- | --- |
+| **prd.md**（业务层） | **做什么、怎样算完成** | 目标、验收标准（AC1..ACn 编号，供测试映射与验证记录引用）、范围外、关键事实 | 交付时逐条对照验收；新会话续接时恢复上下文 |
+| **design.md**（技术层） | **怎么做、做到哪了** | 现状证据、方案、实施步骤与验证、回退 | 编码时照着执行；断点恢复（第一个 `[ ]` 就是续接点） |
+| **review.md**（复核层） | **凭什么说完成** | 差异检查、验收标准结果、**验证记录**（每条已勾选 AC 一条：验证方式/结果/证据，completion 门机械校验）、独立复核、交付确认 | 交付前审查；门禁机械校验输入 |
+| **subtasks.md**（例外） | 大任务怎么拆 | 2~5 个同级子任务（目标/文件/依赖/对应 AC/验证方式），完成即勾选 | 跨服务/前后端+数据库/多独立验收结果时；全部勾选后才可交付 |
 
-## 怎样判断任务真正完成
+测试以 prd 验收标准为输入：写测试前先读 prd.md 验收标准，每条 AC 至少对应一种验证方式（业务链单测 / design 验证步骤 / 人工验证），执行后把验证记录登记到 review.md「验证记录」段（`- [x] ACn | 验证方式: ... | 结果: passed | 证据: ...`）。completion 门机械校验：每条已勾选 AC 必须有对应记录、无 failed、skipped 须说明原因；缺记录或留 failed 都过不了门。
 
-只有 AI 给出 `ready_for_review`，并同时展示以下内容，才具备提交测试或代码评审的条件：
+分界规则：
 
-- 实际修改了什么；
-- 每条验收标准如何验证；
-- 执行了哪些测试和构建，结果是什么；
-- 哪些项目没有执行以及原因；
-- 是否存在剩余风险；
-- 开发人员是否完成最终确认；
-- 下一步应该做什么。
+- prd 管业务：验收标准是交付契约，review 审查逐条对照它给证据。
+- design 管技术：调研证据直接复用为"现状证据"（不重查）；实施步骤勾选标记 `[x]`/`[ ]` 就是任务断点，新会话读它即可继续。
+- 一次性事实（具体表结构、单号）不进文档，留在归档。
 
-“代码已经生成”“看起来正确”或“AI 已自查”都不表示任务完成。
+模板结构：
 
-## 第一版包含什么
+```markdown
+# PRD: <任务编号> <标题>          # Design: <任务编号>
+## 目标                          ## 现状证据
+## 验收标准（3~8 条）              ## 方案（旧行为→新行为→不变化内容）
+## 范围外                        ## 实施步骤与验证（[ ] 步骤+验证命令）
+## 关键事实（涉及文件/接口/规则）   ## 回退方法
+## 阻塞记录（blocked 时）          ## 规范依据（spec 加载结果）
+```
 
-- 四个直观场景：新增功能、修改现有功能、简单修改、缺陷处理。
-- 按条件增加数据库、公共对象、MOM、安全、性能和生产偶发检查。
-- 大任务最多拆成一层同级子任务，每次只实施一个。
-- 中高风险任务使用独立只读复核；平台不支持子代理时降级为独立会话或人工评审。
-- 每个任务使用 `.ai-sop/tasks/<task-id>/` 独立目录，避免不同需求和缺陷串档。
-- 跨平台任务初始化、门禁和完成总结工具。
+例外：大任务（跨服务/前后端+数据库/多独立验收结果）拆为 `subtasks.md`（见共享契约「大任务拆解」）。L1 不产生任何文档。
 
-## 仓库结构
+## 项目落地（一次性安装）
+
+```bash
+# 1. 复制 skills/ 下全部子目录（含 winin-sop-common）到平台 skill 目录
+#    pi / Codex 个人:  %USERPROFILE%\.agents\skills\   （Windows）
+#    Cursor 个人:      %USERPROFILE%\.cursor\skills\
+#    Claude Code 个人: %USERPROFILE%\.claude\skills\
+#    项目级:           <项目>\.agents\skills\ 等（推荐，纳入版本管理）
+
+# 2. 验证脚本可用
+node <skills根>\winin-sop-common\scripts\winin-sop.mjs self-test
+```
+
+规范库：无需初始化。项目已有规范（`.ai-sop/spec/` 或 `.trellis/spec/`，含 index.md 索引表）会被 `winin-sop-spec` 自动发现并按风险点加载；没有规范库则跳过，不阻断任务。
+
+## 使用示例：两个全流程
+
+### 场景一：Bug 修复（制品上架报"库位代码不能为空"）
 
 ```text
-skills/winin-dev-sop/
-├─ SKILL.md
-├─ agents/
-│  └─ openai.yaml
-├─ assets/
-│  └─ task-state.template.json
-├─ references/
-│  ├─ readiness.md
-│  ├─ scenario-new-feature.md
-│  ├─ scenario-existing-change.md
-│  ├─ scenario-simple-change.md
-│  ├─ scenario-bug.md
-│  ├─ risk-actions.md
-│  └─ review-protocol.md
-└─ scripts/
-   └─ winin-sop.mjs
+用户：/winin-sop-bugfix 新增制品上架报错"库位代码不能为空"，本地已经执行，有日志
+
+AI：（调研：读日志 → 定位代码 → 只读数据库验证）
+   日志：ConstraintViolationException，Caused by ProductputawayRequestMainService.java:944
+   代码：map 以 packageNumber 填充、却用 palletNumber 查询 → key 不匹配
+   数据库：该单 pallet_number='P001'、location_code=NULL，与代码分析一致
+   推荐档位：L2（稳定缺陷、单模块单根因），确认？
+
+用户：确认
+
+AI：（建任务 + 加载规范 + 方案）
+   init MES-1301 → 登记档位 L2 ✓（task-state.json complexity 字段）
+   winin-sop-spec：已加载 troubleshooting（日志/只读DB）、mom（上架状态）
+   方案：统一 map key 来源（最小 2 行）。确认？
+
+用户：确认
+
+AI：（实施 + 单元测试 + diff 审查）
+   最小修复 → 业务链单测通过 → diff 核对：变更 1 文件 2 行，根因修复点已变更、相邻路径未受影响，无遗漏调用方；验收标准 2/2 有验证记录（AC1/AC2 均 passed），无剩余风险。
+   任务已 ready_for_review；需要归档请告知。
+
+用户：归档
+
+AI：MES-1301 已归档（archive）。
+
+任务结束。
+
+> 变体（线上问题，本地无日志）：③ 定位日志路径 → 反复确认（换关键词/时间窗口/查 .gz 归档）
+> 仍无 → 停止排查，请求用户提供线上日志（模块/时间窗口/关联单号）→ 任务 blocked，
+> 拿到日志后继续；禁止凭口头描述直接定位。
 ```
 
-## 历史版本与设计资料
+### 场景二：功能开发（工单列表组合筛选）
 
-`archive/` 保存早期完整规范和 PowerShell 试点版本，用于追溯设计思路、对比演进过程和复用历史测试资料。归档内容已经停止维护，不是安装入口，也不得覆盖当前版本。
+```text
+用户：/winin-sop-feature 工单列表增加产线和计划日期组合筛选，原有筛选保持不变，
+     原型在 docs/ui/workorder-filter.png
 
-- [历史资料总览](archive/README.md)
-- [第一版多场景文档](archive/v1/README.md)
-- [0.3.1 PowerShell 试点版](archive/v0.3.1/README.md)
+AI：（调研：定位入口 → 硬性信号扫描 → 规模估计）
+   涉及 3 文件：OrderList.vue（筛选区）、WmsOrderQuery.java（DTO）、OrderQueryMapper.xml（动态 SQL）
+   硬性信号：未命中（无数据库变更/公共接口/权限变化）
+   推荐档位：L2（新增筛选、范围中等），确认？
 
-开发人员安装和执行时始终以根目录 README 与 `skills/winin-dev-sop/` 为准。
+用户：确认
+
+AI：（需求澄清，有预算：只问会改变结果的问题，L2 动态 3~5 轮，够设计即停）
+   锚点：现有筛选（关键字/状态），差异 = 新增 2 个条件。
+   查证（不问）：产线下拉数据源、组合逻辑=AND（现有筛选 Mapper SQL 已有证据）
+   第 1 问（选项式）：计划日期口径是？A 自然日（00:00-23:59）/ B 班次日 / C 工作日
+
+用户：A，自然日
+
+AI：（方案提案）2-3 方案带权衡：
+   方案 A（推荐）：扩展现有 DTO + Mapper 动态 SQL，改动 3 文件，向后兼容，复用现有链路
+   方案 B：新建独立查询接口，改动大，旧链路双维护
+   方案 C：前端本地过滤，不推荐，数据量大且绕过分页
+   选 A？
+
+用户：按推荐的来
+
+AI：（建任务 + 加载规范 + 方案）
+   init MES-1234 → 登记档位 L2 ✓（task-state.json complexity 字段）
+   winin-sop-spec：已加载项目约定、api（DTO 兼容策略）
+   方案：DTO 加 2 字段（向后兼容）→ Mapper 动态条件（空值=不过滤）→ 前端 2 控件复用现有链路。确认？
+
+用户：确认
+
+AI：（实施 + 单元测试 + diff 审查）
+   步骤 1/3 DTO+Mapper → mvn test passed；步骤 2/3 前端 → 页面手测单条件/组合/空值正确；
+   步骤 3/3 原筛选回归通过 → diff 核对：变更 3 文件，DTO 兼容无旧调用方受影响；验收标准 3/3 有验证记录（业务链单测 + 页面手测，均 passed），规范合规 ✓。
+   任务已 ready_for_review；需要归档请告知。
+
+用户：归档
+
+AI：MES-1234 已归档（archive）。
+
+任务结束。
+```
+
+两个场景覆盖同一套全流程：① 调研定档（一次确认）→ ② 建任务 + 加载规范 + 方案确认 → ③ 实施 → ④ diff 影响面分析（静态检查）→ 提交代码（审核）→ 收尾（archive 仅用户主动）。
+
+关键规则：
+- 交付后开发人员一般静默通过，有异议才回复；静默即接受，任务保持 `ready_for_review`。
+- 归档是用户主动行为，AI 只提示（"需要归档请告知"），不自行执行。
+- 分支/worktree 由你决定：AI 创建 git 分支、worktree 前必须先征求你的意见，只给推荐不执行，以你的决定为准。
+- 区别只在 ① 的调研方式（bug 走日志→代码→只读数据库三要素，功能走定位→信号扫描→规模估计）。

@@ -1,0 +1,19 @@
+{
+  "taskId": "",
+  "title": "",
+  "status": "planning",
+  "complexity": {
+    "level": "L2",
+    "reason": "",
+    "confirmedBy": "",
+    "confirmedAt": ""
+  },
+  "independentReview": false,
+  "baseline": {
+    "branch": "",
+    "commit": "",
+    "workingTreeInitiallyDirty": false
+  },
+  "createdAt": "",
+  "updatedAt": ""
+}
