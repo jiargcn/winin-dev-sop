@@ -22,7 +22,7 @@ Skill 仓库地址：https://github.com/jiargcn/winin-dev-sop
    node <skills根>/winin-sop-common/scripts/winin-sop.mjs self-test
    如果 Node.js 不可用，说明 Skill 仍可使用，只是确定性辅助检查会由 AI 按文档执行。
 7. 验证当前 Agent 能发现 winin-sop-bugfix 和 winin-sop-feature；必要时告诉我重新启动客户端或新建会话。
-8. 阅读入口 SKILL.md、共享契约 workflow.md 和本仓库的“开发人员一页操作卡.md”，用不超过五分钟的内容教会我：如何开始任务、什么时候需要我确认、怎样判断任务真正完成。
+8. 阅读仓库中 `skills/winin-sop-bugfix/SKILL.md`、`skills/winin-sop-feature/SKILL.md`、`skills/winin-sop-common/workflow.md` 和本仓库的“开发人员一页操作卡.md”，用不超过五分钟的内容教会我：如何开始任务、什么时候需要我确认、怎样判断任务真正完成。
 9. 最后给出一条适合当前 Agent 的首次使用提示词。
 
 安装过程中不要修改我的业务源码，不要安装无关依赖，不要删除已有 Skill，也不要把密钥、凭据或未脱敏数据发送到外部。
@@ -31,9 +31,10 @@ Skill 仓库地址：https://github.com/jiargcn/winin-dev-sop
 ## 安装后首次任务提示词
 
 ```text
-使用 winin-sop-bugfix（缺陷）或 winin-sop-feature（功能）完成任务 <任务编号>。
+使用 winin-sop-bugfix（缺陷）或 winin-sop-feature（功能）完成以下任务。
 
 任务内容：<粘贴需求或缺陷描述>。
+任务编号：<如有任务单编号则填写；没有可省略，AI 会自动生成 LOCAL-日期时间 编号>。
 验收标准：<如任务单已经提供则粘贴；没有则让 AI 协助整理>。
 相关资料：<任务单、原型、截图、日志或参考实现的位置>。
 
@@ -43,15 +44,15 @@ Skill 仓库地址：https://github.com/jiargcn/winin-dev-sop
 Codex 用户可以把第一句替换为：
 
 ```text
-使用 $winin-sop-bugfix 完成任务 <任务编号>。
+使用 $winin-sop-bugfix 完成：<粘贴需求或缺陷描述>。
 ```
 
 ## 安装后自学提示词
 
 ```text
-请使用 winin-dev-sop 的教学方式带我完成一次不修改业务代码的演练。
+请使用闻荫开发标准流程（winin-sop-bugfix / winin-sop-feature）带我完成一次不修改业务代码的演练。
 
-先阅读入口 SKILL.md 和“开发人员一页操作卡.md”，然后：
+先加载这两个入口 skill，然后：
 1. 用一个简单需求演示开工检查和自动选路；
 2. 演示 AI 会怎样整理方案和验证设计；
 3. 明确指出哪两次主要确认需要由开发人员完成；
