@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "taskId": "",
   "title": "",
   "baseline": {
@@ -23,11 +23,22 @@
     "approvalRequired": true,
     "approved": false,
     "approvedBy": "",
-    "approvedAt": ""
+    "approvedAt": "",
+    "confirmationPhrase": "",
+    "shownToHuman": {
+      "goal": "",
+      "plan": "",
+      "testDesign": "",
+      "scope": ""
+    }
   },
   "tests": {
     "designPath": "test-design.md",
     "executions": []
+  },
+  "changes": {
+    "files": [],
+    "note": ""
   },
   "review": {
     "independentRequired": false,
@@ -35,7 +46,16 @@
     "path": "review.md",
     "humanApproved": false,
     "approvedBy": "",
-    "approvedAt": ""
+    "approvedAt": "",
+    "confirmationPhrase": "",
+    "shownToHuman": {
+      "goal": "",
+      "diff": "",
+      "acceptanceResults": "",
+      "tests": "",
+      "skipped": "",
+      "remainingRisks": ""
+    }
   },
   "remainingRisks": [],
   "status": "intake",
